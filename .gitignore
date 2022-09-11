@@ -1,0 +1,16 @@
+.idea
+*.un~
+*.swp
+.python-version
+*.pyc
+/dist
+*.egg-info
+.DS_Store
+.env
+node_modules/
+webpack_bundles/
+/static/
+celerybeat-schedule.*
+.vscode
+*.sqlite3
+/doc/build/
