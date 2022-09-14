@@ -34,6 +34,7 @@ class ModelWDjango(AutoPreset):
         enable_celery: Optional[bool] = None,
         celery_task_track_started: bool = True,
         celery_task_time_limit: float | int = 3600,
+        enable_channels: Optional[bool] = None,
     ):
         """
         You can set here different adjustments within the supported options
@@ -80,6 +81,11 @@ class ModelWDjango(AutoPreset):
             limit). Choose something wide but choose something. The default of
             1h seems reasonable. This avoids stalled processes (requests
             without timeout...) clogging the queue.
+        enable_channels
+            Enables Django Channels (which will configure it to use Redis). By
+            default it will detect if channels is present and enable it
+            automatically if so. You can just request the "channels" extra to
+            this package.
         """
 
         self.sentry_sample_rate = sentry_sample_rate
@@ -103,6 +109,17 @@ class ModelWDjango(AutoPreset):
         self.enable_celery: bool = enable_celery
         self.celery_task_track_started = celery_task_track_started
         self.celery_task_time_limit = celery_task_time_limit
+
+        if enable_channels is None:
+            try:
+                import channels
+                import channels_redis
+            except ImportError:
+                enable_channels = False
+            else:
+                enable_channels = True
+
+        self.enable_channels: bool = enable_channels
 
     def _guess_base_dir(self, base_dir: Optional[Union[str, Path]]) -> Path:
         """
@@ -545,3 +562,33 @@ class ModelWDjango(AutoPreset):
         }
 
         yield from self._install_app(context, "django_celery_results")
+
+    def pre_channels(self, env: EnvManager):
+        """
+        If Channels is enabled we need to configure the broker to be Redis and
+        to be prefixing properly its keys (otherwise we're at risk of conflict
+        with the other parts of the app that also use Redis).
+        """
+
+        if not self.enable_channels:
+            return
+
+        yield "CHANNEL_LAYERS", {
+            "default": {
+                "BACKEND": "channels_redis.core.RedisChannelLayer",
+                "CONFIG": {
+                    "hosts": [self._redis_url(env)],
+                    "prefix": self._redis_prefix(env, "channels"),
+                },
+            },
+        }
+
+    def post_channels(self, context):
+        """
+        Trying to be nice and adding channels to the installed apps.
+        """
+
+        if not self.enable_channels:
+            return
+
+        yield from self._install_app(context, "channels")
