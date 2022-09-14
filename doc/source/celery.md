@@ -160,3 +160,6 @@ python -m celery -A demo_django.celery:app worker
 # Starting the beat
 python -m celery -A demo_django.celery:app beat
 ```
+
+Of course don't forget to change `demo_django.celery` with the actual name of
+your celery module!
