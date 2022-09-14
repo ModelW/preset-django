@@ -9,7 +9,9 @@ environment variables.
     decent default value. You need to specify them.
     -   `DATABASE_URL` &mdash; The URL to the database (must be a PostgreSQL DB)
     -   `ENVIRONMENT` &mdash; Name of the environment (current branch name,
-        develop, etc)
+        develop, etc). That's only required in production, if the current user
+        seems to have a home in `/home` we'll invent an environment name based
+        on the user name and the DB name.
     -   `SECRET_KEY` &mdash; Django's secret key value
 -   Cache/Queue
     -   `REDIS_URL` &mdash; Base URL of the Redis. It will be used by several

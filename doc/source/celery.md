@@ -31,8 +31,8 @@ build-backend = "poetry.core.masonry.api"
 ## Usage in settings
 
 By default, if the Celery packages are installed then the configuration will
-automatically be activated. However,
-the{py:class}`~.model_w.preset.django.ModelWDjango` preset has a `enable_celery`
+automatically be activated. However, the
+{py:class}`~.model_w.preset.django.ModelWDjango` preset has a `enable_celery`
 setting that you can change as well.
 
 ```python

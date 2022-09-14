@@ -7,7 +7,7 @@ import coloredlogs
 import sentry_sdk
 from dj_database_url import parse as db_config
 from django.core.exceptions import ImproperlyConfigured
-from model_w.env_manager import AutoPreset, EnvManager
+from model_w.env_manager import AutoPreset, EnvManager, no_default
 from model_w.env_manager._dotenv import find_dotenv  # noqa
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -167,9 +167,29 @@ class ModelWDjango(AutoPreset):
         Determines which is the environment, which is a mandatory environment
         variable. It can be "develop_remy" for a developer's environment,
         "production" for prod, "feature_42" for a feature branch, etc.
+
+        If we see that the user's home is in `/home` then we invent an
+        environment name automatically based on the DB name. This kinds of
+        ensure unicity in subsequent prefixes (for Redis) because if the DB
+        name is unique locally then the prefix name shall be too.
+
+        We don't do this in production because this should be a deliberate
+        choice to name the environment and not just letting the default happen.
         """
 
-        return env.get("ENVIRONMENT", build_default="_build")
+        default = no_default
+
+        if env.get("HOME", default="").startswith("/home/") and (
+            user := env.get("USER", default="")
+        ):
+            db = dict(self.pre_database(env))
+
+            if "DATABASES" in db and (
+                db_name := db["DATABASES"]["default"]["NAME"]  # noqa
+            ):
+                default = f"{user}_{db_name}"
+
+        return env.get("ENVIRONMENT", default=default, build_default="_build")
 
     def _install_app(self, context, app):
         """
