@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "modelw-preset-django"
-version = "2022.10.0a4"
+version = "2022.10.0b1"
 packages = [
     {  include = "model_w/preset/django", from = "src" }
 ]
@@ -9,7 +9,7 @@ description = "Model W preset for Django"
 authors = ["Rémy Sanchez <remy.sanchez@hyperthese.net>"]
 license = "WTFPL"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Framework :: Django",
     "Framework :: Django :: 4.1",
     "Intended Audience :: Developers",
