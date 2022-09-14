@@ -29,7 +29,6 @@ with EnvManager(ModelWDjango()) as env:
         ("en", "English"),
         ("fr", "French"),
     ]
-
 ```
 
 Many values are set from the preset, based on the assumptions explained later

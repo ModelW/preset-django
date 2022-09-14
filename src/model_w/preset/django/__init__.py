@@ -7,8 +7,9 @@ import coloredlogs
 import sentry_sdk
 from dj_database_url import parse as db_config
 from django.core.exceptions import ImproperlyConfigured
-from model_w.env_manager import AutoPreset, EnvManager
+from model_w.env_manager import AutoPreset, EnvManager, no_default
 from model_w.env_manager._dotenv import find_dotenv  # noqa
+from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
 
@@ -30,6 +31,10 @@ class ModelWDjango(AutoPreset):
         url_prefix: str = "/back",
         conn_max_age_when_pooled: Union[int, float] = 60,
         enable_cache: bool = True,
+        enable_celery: Optional[bool] = None,
+        celery_task_track_started: bool = True,
+        celery_task_time_limit: float | int = 3600,
+        enable_channels: Optional[bool] = None,
     ):
         """
         You can set here different adjustments within the supported options
@@ -64,6 +69,23 @@ class ModelWDjango(AutoPreset):
             enabled.
         enable_cache
             Enables the cache engine (in Redis).
+        enable_celery
+            Enables a default configuration for Celery, that can then be
+            overridden. By default it will enable itself if Celery can be
+            imported. Celery will be installed if you install the celery
+            extra dependency (pip install modelw-preset-django[celery]).
+        celery_task_track_started
+            Enable or not the tracking of tasks start
+        celery_task_time_limit
+            Maximum duration before a worker gets killed on a task (hard
+            limit). Choose something wide but choose something. The default of
+            1h seems reasonable. This avoids stalled processes (requests
+            without timeout...) clogging the queue.
+        enable_channels
+            Enables Django Channels (which will configure it to use Redis). By
+            default it will detect if channels is present and enable it
+            automatically if so. You can just request the "channels" extra to
+            this package.
         """
 
         self.sentry_sample_rate = sentry_sample_rate
@@ -73,6 +95,31 @@ class ModelWDjango(AutoPreset):
         self.url_prefix = url_prefix.rstrip("/")
         self.conn_max_age_when_pooled = conn_max_age_when_pooled
         self.enable_cache = enable_cache
+
+        if enable_celery is None:
+            try:
+                import celery
+                import django_celery_results
+                import redis
+            except ImportError:
+                enable_celery = False
+            else:
+                enable_celery = True
+
+        self.enable_celery: bool = enable_celery
+        self.celery_task_track_started = celery_task_track_started
+        self.celery_task_time_limit = celery_task_time_limit
+
+        if enable_channels is None:
+            try:
+                import channels
+                import channels_redis
+            except ImportError:
+                enable_channels = False
+            else:
+                enable_channels = True
+
+        self.enable_channels: bool = enable_channels
 
     def _guess_base_dir(self, base_dir: Optional[Union[str, Path]]) -> Path:
         """
@@ -137,9 +184,40 @@ class ModelWDjango(AutoPreset):
         Determines which is the environment, which is a mandatory environment
         variable. It can be "develop_remy" for a developer's environment,
         "production" for prod, "feature_42" for a feature branch, etc.
+
+        If we see that the user's home is in `/home` then we invent an
+        environment name automatically based on the DB name. This kinds of
+        ensure unicity in subsequent prefixes (for Redis) because if the DB
+        name is unique locally then the prefix name shall be too.
+
+        We don't do this in production because this should be a deliberate
+        choice to name the environment and not just letting the default happen.
         """
 
-        return env.get("ENVIRONMENT", build_default="_build")
+        default = no_default
+
+        if env.get("HOME", default="").startswith("/home/") and (
+            user := env.get("USER", default="")
+        ):
+            db = dict(self.pre_database(env))
+
+            if "DATABASES" in db and (
+                db_name := db["DATABASES"]["default"]["NAME"]  # noqa
+            ):
+                default = f"{user}_{db_name}"
+
+        return env.get("ENVIRONMENT", default=default, build_default="_build")
+
+    def _install_app(self, context, app):
+        """
+        Utility to force an app into INSTALLED_APPS
+        """
+
+        if not (installed := context["INSTALLED_APPS"]):
+            raise ImproperlyConfigured("INSTALLED_APPS not found in configuration")
+
+        if app not in installed:
+            yield "INSTALLED_APPS", [*installed, app]
 
     def pre_base_dir(self):
         """
@@ -155,7 +233,10 @@ class ModelWDjango(AutoPreset):
 
         if env.get("SENTRY_DSN", None):
             sentry_sdk.init(
-                integrations=[DjangoIntegration()],
+                integrations=[
+                    DjangoIntegration(),
+                    *([CeleryIntegration()] if self.enable_celery else []),
+                ],
                 send_default_pii=True,
                 traces_sample_rate=self.sentry_sample_rate,
                 environment=self._environment(env),
@@ -187,10 +268,10 @@ class ModelWDjango(AutoPreset):
             level=logging.DEBUG if self._debug(env) else logging.WARNING,
             fmt="%(asctime)s %(name)s[%(process)d] %(levelname)s %(message)s",
         )
-        logging.getLogger("django.utils.autoreload").setLevel(logging.INFO)
+        logging.getLogger("django.utils.autoreload").setLevel(logging.WARNING)
         logging.getLogger("django.db.backends").setLevel(logging.INFO)
         logging.getLogger("django.template").setLevel(logging.INFO)
-        logging.getLogger("django.request").setLevel(logging.INFO)
+        logging.getLogger("django.request").setLevel(logging.ERROR)
         logging.getLogger("asyncio").setLevel(logging.INFO)
         logging.getLogger("parso").setLevel(logging.INFO)
         logging.getLogger("s3transfer").setLevel(logging.INFO)
@@ -366,6 +447,22 @@ class ModelWDjango(AutoPreset):
                 }
             }
 
+    def pre_wailer(self):
+        """
+        We're just defining those so that Wailer doesn't crash, however we'll
+        let the user define their own emails/sms when then want.
+        """
+
+        yield "WAILER_EMAIL_TYPES", {}
+        yield "WAILER_SMS_TYPES", {}
+
+    def post_wailer(self, context):
+        """
+        Making sure that Wailer is installed in the apps
+        """
+
+        yield from self._install_app(context, "wailer")
+
     def post_email(self, env: EnvManager):
         """
         Configuring emails sending. Unless an environment variable explicitly
@@ -373,8 +470,30 @@ class ModelWDjango(AutoPreset):
         reasons.
         """
 
-        if not env.get("ENABLE_EMAILS", False, is_yaml=True):
-            yield "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+        match env.get("EMAIL_MODE", default="console"):
+            case "mailjet":
+                yield "EMAIL_BACKEND", "wailer.backends.MailjetEmailBackend"
+                yield "MAILJET_API_KEY_PUBLIC", env.get("MAILJET_API_KEY_PUBLIC")
+                yield "MAILJET_API_KEY_PRIVATE", env.get("MAILJET_API_KEY_PRIVATE")
+            case "mandrill":
+                yield "EMAIL_BACKEND", "wailer.backends.MandrillEmailBackend"
+                yield "MANDRILL_API_KEY", env.get("MANDRILL_API_KEY")
+            case _:
+                yield "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+
+    def post_sms(self, env: EnvManager):
+        """
+        Configuring SMS sending. Unless an environment variable explicitly
+        enables SMSes, they will be printed on the console for obvious safety
+        reasons.
+        """
+
+        match env.get("SMS_MODE", default="console"):
+            case "mailjet":
+                yield "SMS_BACKEND", "wailer.backends.MailjetSmsBackend"
+                yield "MAILJET_API_TOKEN", env.get("MAILJET_API_TOKEN")
+            case _:
+                yield "SMS_BACKEND", "sms.backends.console.SmsBackend"
 
     def pre_drf(self):
         """
@@ -401,8 +520,75 @@ class ModelWDjango(AutoPreset):
         intrusive.
         """
 
-        if not (installed := context["INSTALLED_APPS"]):
-            raise ImproperlyConfigured("INSTALLED_APPS not found in configuration")
+        yield from self._install_app(context, "model_w.preset.django.env_helper")
 
-        if "model_w.preset.django.env_helper" not in installed:
-            yield "INSTALLED_APPS", [*installed, "model_w.preset.django.env_helper"]
+    def pre_celery(self, env: EnvManager):
+        """
+        When Celery is enabled, we inject some decent default using Redis as a
+        broker and Django-backed backends.
+        """
+
+        if not self.enable_celery:
+            return
+
+        yield "CELERY_RESULT_BACKEND", "django-db"
+        yield "CELERY_CACHE_BACKEND", "django-cache"
+        yield "CELERY_BROKER_URL", self._redis_url(env)
+        yield "CELERY_BEAT_SCHEDULER", "celery.beat.Scheduler"
+        yield "CELERY_TIMEZONE", self.default_time_zone
+        yield "CELERY_TASK_TRACK_STARTED", self.celery_task_track_started
+        yield "CELERY_TASK_TIME_LIMIT", self.celery_task_time_limit
+        yield "CELERY_TASK_REMOTE_TRACEBACKS", True
+        yield "CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS", True
+
+    def post_celery(self, env: EnvManager, context):
+        """
+        These settings are put in post because we want to give a chance to the
+        user to override the broker URL. If they didn't do it, we proceed to
+        hijacking the broker options to enforce a prefix in Redis keys.
+        """
+
+        if not self.enable_celery:
+            return
+
+        if context["CELERY_BROKER_URL"] != self._redis_url(env):
+            return
+
+        opts = context.get("CELERY_BROKER_TRANSPORT_OPTIONS", {})
+
+        yield "CELERY_BROKER_TRANSPORT_OPTIONS", {
+            **opts,
+            "global_keyprefix": self._redis_prefix(env, "celery"),
+        }
+
+        yield from self._install_app(context, "django_celery_results")
+
+    def pre_channels(self, env: EnvManager):
+        """
+        If Channels is enabled we need to configure the broker to be Redis and
+        to be prefixing properly its keys (otherwise we're at risk of conflict
+        with the other parts of the app that also use Redis).
+        """
+
+        if not self.enable_channels:
+            return
+
+        yield "CHANNEL_LAYERS", {
+            "default": {
+                "BACKEND": "channels_redis.core.RedisChannelLayer",
+                "CONFIG": {
+                    "hosts": [self._redis_url(env)],
+                    "prefix": self._redis_prefix(env, "channels"),
+                },
+            },
+        }
+
+    def post_channels(self, context):
+        """
+        Trying to be nice and adding channels to the installed apps.
+        """
+
+        if not self.enable_channels:
+            return
+
+        yield from self._install_app(context, "channels")

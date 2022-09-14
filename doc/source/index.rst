@@ -11,6 +11,8 @@ PaaS.
 
    installation
    env-vars
+   celery
+   channels
    assumptions
    contributing
 
