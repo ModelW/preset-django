@@ -141,6 +141,17 @@ class ModelWDjango(AutoPreset):
 
         return env.get("ENVIRONMENT", build_default="_build")
 
+    def _install_app(self, context, app):
+        """
+        Utility to force an app into INSTALLED_APPS
+        """
+
+        if not (installed := context["INSTALLED_APPS"]):
+            raise ImproperlyConfigured("INSTALLED_APPS not found in configuration")
+
+        if app not in installed:
+            yield "INSTALLED_APPS", [*installed, app]
+
     def pre_base_dir(self):
         """
         Saving the base dir into settings
@@ -366,6 +377,22 @@ class ModelWDjango(AutoPreset):
                 }
             }
 
+    def pre_wailer(self):
+        """
+        We're just defining those so that Wailer doesn't crash, however we'll
+        let the user define their own emails/sms when then want.
+        """
+
+        yield "WAILER_EMAIL_TYPES", {}
+        yield "WAILER_SMS_TYPES", {}
+
+    def post_wailer(self, context):
+        """
+        Making sure that Wailer is installed in the apps
+        """
+
+        yield from self._install_app(context, "wailer")
+
     def post_email(self, env: EnvManager):
         """
         Configuring emails sending. Unless an environment variable explicitly
@@ -373,8 +400,30 @@ class ModelWDjango(AutoPreset):
         reasons.
         """
 
-        if not env.get("ENABLE_EMAILS", False, is_yaml=True):
-            yield "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+        match env.get("EMAIL_MODE", default="console"):
+            case "mailjet":
+                yield "EMAIL_BACKEND", "wailer.backends.MailjetEmailBackend"
+                yield "MAILJET_API_KEY_PUBLIC", env.get("MAILJET_API_KEY_PUBLIC")
+                yield "MAILJET_API_KEY_PRIVATE", env.get("MAILJET_API_KEY_PRIVATE")
+            case "mandrill":
+                yield "EMAIL_BACKEND", "wailer.backends.MandrillEmailBackend"
+                yield "MANDRILL_API_KEY", env.get("MANDRILL_API_KEY")
+            case _:
+                yield "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+
+    def post_sms(self, env: EnvManager):
+        """
+        Configuring SMS sending. Unless an environment variable explicitly
+        enables SMSes, they will be printed on the console for obvious safety
+        reasons.
+        """
+
+        match env.get("SMS_MODE", default="console"):
+            case "mailjet":
+                yield "SMS_BACKEND", "wailer.backends.MailjetSmsBackend"
+                yield "MAILJET_API_TOKEN", env.get("MAILJET_API_TOKEN")
+            case _:
+                yield "SMS_BACKEND", "sms.backends.console.SmsBackend"
 
     def pre_drf(self):
         """
@@ -401,8 +450,4 @@ class ModelWDjango(AutoPreset):
         intrusive.
         """
 
-        if not (installed := context["INSTALLED_APPS"]):
-            raise ImproperlyConfigured("INSTALLED_APPS not found in configuration")
-
-        if "model_w.preset.django.env_helper" not in installed:
-            yield "INSTALLED_APPS", [*installed, "model_w.preset.django.env_helper"]
+        yield from self._install_app(context, "model_w.preset.django.env_helper")
