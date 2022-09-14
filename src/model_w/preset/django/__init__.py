@@ -9,6 +9,7 @@ from dj_database_url import parse as db_config
 from django.core.exceptions import ImproperlyConfigured
 from model_w.env_manager import AutoPreset, EnvManager
 from model_w.env_manager._dotenv import find_dotenv  # noqa
+from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
 
@@ -30,6 +31,9 @@ class ModelWDjango(AutoPreset):
         url_prefix: str = "/back",
         conn_max_age_when_pooled: Union[int, float] = 60,
         enable_cache: bool = True,
+        enable_celery: Optional[bool] = None,
+        celery_task_track_started: bool = True,
+        celery_task_time_limit: float | int = 3600,
     ):
         """
         You can set here different adjustments within the supported options
@@ -64,6 +68,18 @@ class ModelWDjango(AutoPreset):
             enabled.
         enable_cache
             Enables the cache engine (in Redis).
+        enable_celery
+            Enables a default configuration for Celery, that can then be
+            overridden. By default it will enable itself if Celery can be
+            imported. Celery will be installed if you install the celery
+            extra dependency (pip install modelw-preset-django[celery]).
+        celery_task_track_started
+            Enable or not the tracking of tasks start
+        celery_task_time_limit
+            Maximum duration before a worker gets killed on a task (hard
+            limit). Choose something wide but choose something. The default of
+            1h seems reasonable. This avoids stalled processes (requests
+            without timeout...) clogging the queue.
         """
 
         self.sentry_sample_rate = sentry_sample_rate
@@ -73,6 +89,20 @@ class ModelWDjango(AutoPreset):
         self.url_prefix = url_prefix.rstrip("/")
         self.conn_max_age_when_pooled = conn_max_age_when_pooled
         self.enable_cache = enable_cache
+
+        if enable_celery is None:
+            try:
+                import celery
+                import django_celery_results
+                import redis
+            except ImportError:
+                enable_celery = False
+            else:
+                enable_celery = True
+
+        self.enable_celery: bool = enable_celery
+        self.celery_task_track_started = celery_task_track_started
+        self.celery_task_time_limit = celery_task_time_limit
 
     def _guess_base_dir(self, base_dir: Optional[Union[str, Path]]) -> Path:
         """
@@ -166,7 +196,10 @@ class ModelWDjango(AutoPreset):
 
         if env.get("SENTRY_DSN", None):
             sentry_sdk.init(
-                integrations=[DjangoIntegration()],
+                integrations=[
+                    DjangoIntegration(),
+                    *([CeleryIntegration()] if self.enable_celery else []),
+                ],
                 send_default_pii=True,
                 traces_sample_rate=self.sentry_sample_rate,
                 environment=self._environment(env),
@@ -198,10 +231,10 @@ class ModelWDjango(AutoPreset):
             level=logging.DEBUG if self._debug(env) else logging.WARNING,
             fmt="%(asctime)s %(name)s[%(process)d] %(levelname)s %(message)s",
         )
-        logging.getLogger("django.utils.autoreload").setLevel(logging.INFO)
+        logging.getLogger("django.utils.autoreload").setLevel(logging.WARNING)
         logging.getLogger("django.db.backends").setLevel(logging.INFO)
         logging.getLogger("django.template").setLevel(logging.INFO)
-        logging.getLogger("django.request").setLevel(logging.INFO)
+        logging.getLogger("django.request").setLevel(logging.ERROR)
         logging.getLogger("asyncio").setLevel(logging.INFO)
         logging.getLogger("parso").setLevel(logging.INFO)
         logging.getLogger("s3transfer").setLevel(logging.INFO)
@@ -451,3 +484,44 @@ class ModelWDjango(AutoPreset):
         """
 
         yield from self._install_app(context, "model_w.preset.django.env_helper")
+
+    def pre_celery(self, env: EnvManager):
+        """
+        When Celery is enabled, we inject some decent default using Redis as a
+        broker and Django-backed backends.
+        """
+
+        if not self.enable_celery:
+            return
+
+        yield "CELERY_RESULT_BACKEND", "django-db"
+        yield "CELERY_CACHE_BACKEND", "django-cache"
+        yield "CELERY_BROKER_URL", self._redis_url(env)
+        yield "CELERY_BEAT_SCHEDULER", "celery.beat.Scheduler"
+        yield "CELERY_TIMEZONE", self.default_time_zone
+        yield "CELERY_TASK_TRACK_STARTED", self.celery_task_track_started
+        yield "CELERY_TASK_TIME_LIMIT", self.celery_task_time_limit
+        yield "CELERY_TASK_REMOTE_TRACEBACKS", True
+        yield "CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS", True
+
+    def post_celery(self, env: EnvManager, context):
+        """
+        These settings are put in post because we want to give a chance to the
+        user to override the broker URL. If they didn't do it, we proceed to
+        hijacking the broker options to enforce a prefix in Redis keys.
+        """
+
+        if not self.enable_celery:
+            return
+
+        if context["CELERY_BROKER_URL"] != self._redis_url(env):
+            return
+
+        opts = context.get("CELERY_BROKER_TRANSPORT_OPTIONS", {})
+
+        yield "CELERY_BROKER_TRANSPORT_OPTIONS", {
+            **opts,
+            "global_keyprefix": self._redis_prefix(env, "celery"),
+        }
+
+        yield from self._install_app(context, "django_celery_results")

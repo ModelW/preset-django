@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "modelw-preset-django"
-version = "2022.10.0a2"
+version = "2022.10.0a3"
 packages = [
     {  include = "model_w/preset/django", from = "src" }
 ]
@@ -34,10 +34,15 @@ whitenoise = "~6.2"
 psycopg2 = "~2.9"
 rich = "~12.5"
 django-wailer = "~1.0.0-beta.2"
+celery = {extras = ["redis", "tblib"], version = "~5.2", optional = true}
+django-celery-results = {version = "~2.4", optional = true}
 
 [tool.poetry.dev-dependencies]
 isort = "*"
 black = "*"
+
+[tool.poetry.extras]
+celery = ["celery", "django-celery-results"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
