@@ -139,7 +139,7 @@ class ModelWDjango(AutoPreset):
             return Path(base_dir)
 
         if manage := find_dotenv("manage.py"):
-            return manage
+            return manage.parent
 
         raise ImproperlyConfigured(
             "Cannot find BASE_DIR of project. Do you have a manage.py?"
