@@ -38,7 +38,7 @@ djangorestframework = "~3.13"
 djangorestframework-gis = "~1.0"
 celery = {extras = ["redis", "tblib"], version = "~5.2", optional = true}
 django-celery-results = {version = "~2.4", optional = true}
-channels = {version = "~4.0.0b1", allow-prereleases = true, optional = true}
+channels = {version = "~4.0.0b1", extras = ["daphne"], allow-prereleases = true, optional = true}
 channels-redis = {version = "~4.0.0b2", allow-prereleases = true, optional = true}
 
 [tool.poetry.dev-dependencies]
