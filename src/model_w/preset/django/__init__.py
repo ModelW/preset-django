@@ -272,6 +272,7 @@ class ModelWDjango(AutoPreset):
         logging.getLogger("django.db.backends").setLevel(logging.INFO)
         logging.getLogger("django.template").setLevel(logging.INFO)
         logging.getLogger("django.request").setLevel(logging.ERROR)
+        logging.getLogger("daphne.http_protocol").setLevel(logging.INFO)
         logging.getLogger("asyncio").setLevel(logging.INFO)
         logging.getLogger("parso").setLevel(logging.INFO)
         logging.getLogger("s3transfer").setLevel(logging.INFO)
@@ -507,6 +508,7 @@ class ModelWDjango(AutoPreset):
             "DEFAULT_PERMISSION_CLASSES": (
                 "rest_framework.permissions.IsAuthenticated",
             ),
+            "DEFAULT_PAGINATION_CLASS": "model_w.preset.django.drf.LimitedPageNumberPagination",
             # 60 can be divided by 2, 3, 4 or 5 (and following multiples) which falls
             # nicely with most column layouts
             "PAGE_SIZE": 60,
