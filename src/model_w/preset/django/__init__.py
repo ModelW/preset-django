@@ -113,7 +113,8 @@ class ModelWDjango(AutoPreset):
         if enable_channels is None:
             try:
                 import channels
-                import channels_redis
+                import redis
+                import daphne
             except ImportError:
                 enable_channels = False
             else:
