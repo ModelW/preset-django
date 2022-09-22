@@ -1,7 +1,7 @@
 import logging
 from functools import cache
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, NamedTuple, List
 
 import coloredlogs
 import sentry_sdk
@@ -11,6 +11,11 @@ from model_w.env_manager import AutoPreset, EnvManager, no_default
 from model_w.env_manager._dotenv import find_dotenv  # noqa
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
+
+
+class InjectedInstall(NamedTuple):
+    priority: int
+    name: str
 
 
 class ModelWDjango(AutoPreset):
@@ -121,6 +126,7 @@ class ModelWDjango(AutoPreset):
                 enable_channels = True
 
         self.enable_channels: bool = enable_channels
+        self.injected_install: List[InjectedInstall] = []
 
     def _guess_base_dir(self, base_dir: Optional[Union[str, Path]]) -> Path:
         """
@@ -209,16 +215,28 @@ class ModelWDjango(AutoPreset):
 
         return env.get("ENVIRONMENT", default=default, build_default="_build")
 
-    def _install_app(self, context, app):
+    def _install_app(self, context, app: str, priority: int = 100):
         """
-        Utility to force an app into INSTALLED_APPS
+        Utility to force an app into INSTALLED_APPS.
+
+        Because order of appearance matters while execution of hooks is not
+        guaranteed, we'll assign to each app a priority and we'll sort them
+        out every time a new one shows up.
+
+        Default priority is 100, including for apps that have been set from the
+        config file.
         """
 
-        if not (installed := context["INSTALLED_APPS"]):
-            raise ImproperlyConfigured("INSTALLED_APPS not found in configuration")
+        present = set(x.name for x in self.injected_install)
 
-        if app not in installed:
-            yield "INSTALLED_APPS", [*installed, app]
+        if app not in present:
+            self.injected_install.append(InjectedInstall(priority, app))
+
+        for other_app in context.get("INSTALLED_APPS", []):
+            if other_app not in present:
+                self.injected_install.append(InjectedInstall(100, other_app))
+
+        yield "INSTALLED_APPS", [x.name for x in sorted(self.injected_install)]
 
     def pre_base_dir(self):
         """
@@ -463,7 +481,7 @@ class ModelWDjango(AutoPreset):
         Making sure that Wailer is installed in the apps
         """
 
-        yield from self._install_app(context, "wailer")
+        yield from self._install_app(context, "wailer", 80)
 
     def post_email(self, env: EnvManager):
         """
@@ -520,8 +538,8 @@ class ModelWDjango(AutoPreset):
         We're installing DRF
         """
 
-        yield from self._install_app(context, "rest_framework")
-        yield from self._install_app(context, "rest_framework_gis")
+        yield from self._install_app(context, "rest_framework", 80)
+        yield from self._install_app(context, "rest_framework_gis", 80)
 
     def post_helper(self, context):
         """
@@ -531,7 +549,7 @@ class ModelWDjango(AutoPreset):
         intrusive.
         """
 
-        yield from self._install_app(context, "model_w.preset.django.env_helper")
+        yield from self._install_app(context, "model_w.preset.django.env_helper", 90)
 
     def pre_celery(self, env: EnvManager):
         """
@@ -572,7 +590,7 @@ class ModelWDjango(AutoPreset):
             "global_keyprefix": self._redis_prefix(env, "celery"),
         }
 
-        yield from self._install_app(context, "django_celery_results")
+        yield from self._install_app(context, "django_celery_results", 80)
 
     def pre_channels(self, env: EnvManager):
         """
@@ -602,4 +620,13 @@ class ModelWDjango(AutoPreset):
         if not self.enable_channels:
             return
 
-        yield from self._install_app(context, "channels")
+        yield from self._install_app(context, "channels", 10)
+        yield from self._install_app(context, "daphne", 10)
+
+    def post_django_default(self, context):
+        yield from self._install_app(context, "django.contrib.admin", 60)
+        yield from self._install_app(context, "django.contrib.auth", 60)
+        yield from self._install_app(context, "django.contrib.contenttypes", 60)
+        yield from self._install_app(context, "django.contrib.messages", 60)
+        yield from self._install_app(context, "django.contrib.sessions", 60)
+        yield from self._install_app(context, "django.contrib.staticfiles", 60)
