@@ -512,6 +512,14 @@ class ModelWDjango(AutoPreset):
             "PAGE_SIZE": 60,
         }
 
+    def post_drf(self, context):
+        """
+        We're installing DRF
+        """
+
+        yield from self._install_app(context, "rest_framework")
+        yield from self._install_app(context, "rest_framework_gis")
+
     def post_helper(self, context):
         """
         This preset comes with a Django app that brings a settings helper. It
