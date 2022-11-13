@@ -1,7 +1,7 @@
 import logging
 from functools import cache
 from pathlib import Path
-from typing import Optional, Union, NamedTuple, List
+from typing import List, NamedTuple, Optional, Union
 
 import coloredlogs
 import sentry_sdk
@@ -9,7 +9,6 @@ from dj_database_url import parse as db_config
 from django.core.exceptions import ImproperlyConfigured
 from model_w.env_manager import AutoPreset, EnvManager, no_default
 from model_w.env_manager._dotenv import find_dotenv  # noqa
-from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
 
@@ -118,8 +117,8 @@ class ModelWDjango(AutoPreset):
         if enable_channels is None:
             try:
                 import channels
-                import redis
                 import daphne
+                import redis
             except ImportError:
                 enable_channels = False
             else:
@@ -250,12 +249,16 @@ class ModelWDjango(AutoPreset):
         Configures Sentry if the DSN is found
         """
 
+        extra = []
+
+        if self.enable_celery:
+            from sentry_sdk.integrations.celery import CeleryIntegration
+
+            extra.append(CeleryIntegration)
+
         if env.get("SENTRY_DSN", None):
             sentry_sdk.init(
-                integrations=[
-                    DjangoIntegration(),
-                    *([CeleryIntegration()] if self.enable_celery else []),
-                ],
+                integrations=[DjangoIntegration(), *extra],
                 send_default_pii=True,
                 traces_sample_rate=self.sentry_sample_rate,
                 environment=self._environment(env),
