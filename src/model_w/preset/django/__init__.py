@@ -11,6 +11,12 @@ from model_w.env_manager import AutoPreset, EnvManager, no_default
 from model_w.env_manager._dotenv import find_dotenv  # noqa
 from sentry_sdk.integrations.django import DjangoIntegration
 
+__version__ = (
+    __import__("pkg_resources").get_distribution("modelw-preset-django").version
+)
+
+__all__ = ["ModelWDjango"]
+
 
 class InjectedInstall(NamedTuple):
     priority: int
@@ -39,6 +45,8 @@ class ModelWDjango(AutoPreset):
         celery_task_track_started: bool = True,
         celery_task_time_limit: float | int = 3600,
         enable_channels: Optional[bool] = None,
+        enable_wagtail: Optional[bool] = None,
+        enable_storages: Optional[bool] = None,
     ):
         """
         You can set here different adjustments within the supported options
@@ -126,6 +134,21 @@ class ModelWDjango(AutoPreset):
 
         self.enable_channels: bool = enable_channels
         self.injected_install: List[InjectedInstall] = []
+
+        if enable_wagtail is None:
+            try:
+                import wagtail
+            except ImportError:
+                enable_wagtail = False
+            else:
+                enable_wagtail = True
+
+        self.enable_wagtail = enable_wagtail
+
+        if enable_storages is None:
+            enable_storages = enable_wagtail
+
+        self.enable_storages = enable_storages
 
     def _guess_base_dir(self, base_dir: Optional[Union[str, Path]]) -> Path:
         """
@@ -361,10 +384,16 @@ class ModelWDjango(AutoPreset):
         set LANGUAGES and LANGUAGE_CODE separately).
         """
 
-        if not context.get("LANGUAGES"):
+        if not (langs := context.get("LANGUAGES")):
             raise ImproperlyConfigured("No languages found in LANGUAGES")
 
         yield "LANGUAGE_CODE", context["LANGUAGES"][0][0]
+
+        if self.enable_wagtail and "WAGTAIL_CONTENT_LANGUAGES" not in context:
+            yield "WAGTAIL_CONTENT_LANGUAGES", langs
+
+        if self.enable_wagtail and "WAGTAILADMIN_PERMITTED_LANGUAGES" not in context:
+            yield "WAGTAILADMIN_PERMITTED_LANGUAGES", langs
 
     def pre_static_files(self):
         """
@@ -564,7 +593,7 @@ class ModelWDjango(AutoPreset):
             return
 
         yield "CELERY_RESULT_BACKEND", "django-db"
-        yield "CELERY_CACHE_BACKEND", "django-cache"
+        yield "CELERY_RESULT_EXTENDED", True
         yield "CELERY_BROKER_URL", self._redis_url(env)
         yield "CELERY_BEAT_SCHEDULER", "celery.beat.Scheduler"
         yield "CELERY_TIMEZONE", self.default_time_zone
@@ -633,3 +662,102 @@ class ModelWDjango(AutoPreset):
         yield from self._install_app(context, "django.contrib.messages", 60)
         yield from self._install_app(context, "django.contrib.sessions", 60)
         yield from self._install_app(context, "django.contrib.staticfiles", 60)
+
+    def pre_storages(self, env):
+        """
+        If storages is enabled, we'll look to enable S3.
+
+        There can be two modes to work with S3:
+
+        - s3, when it's S3 storage on AWS cloud
+        - do, when it's S3 storage on DigitalOcean
+
+        Depending on this, different environment variables will be required.
+        It will also detect if we're running from inside an AWS container or
+        something of the sort in order to avoid manually setting the access key
+        when Boto3 will determine it on its own.
+
+        In do mode, the lib is configured to use the DigitalOcean endpoint
+        instead of the default AWS one.
+        """
+
+        if not self.enable_storages:
+            return
+
+        yield "DEFAULT_FILE_STORAGE", "storages.backends.s3boto3.S3Boto3Storage"
+        yield "AWS_S3_FILE_OVERWRITE", False
+
+        is_aws = bool(env.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", default=""))
+        storage_mode = env.get("STORAGES_MODE", default="s3")
+
+        if storage_mode == "do" or not is_aws:
+            yield "AWS_ACCESS_KEY_ID", env.get("AWS_ACCESS_KEY_ID", build_default="xxx")
+            yield "AWS_SECRET_ACCESS_KEY", env.get(
+                "AWS_SECRET_ACCESS_KEY", build_default="xxx"
+            )
+
+        yield "AWS_STORAGE_BUCKET_NAME", env.get(
+            "AWS_STORAGE_BUCKET_NAME", build_default="xxx"
+        )
+
+        if env.get("STORAGE_MAKE_FILES_PUBLIC", is_yaml=True, build_default=False):
+            yield "AWS_S3_CUSTOM_DOMAIN", env.get("AWS_S3_CUSTOM_DOMAIN")
+            yield "AWS_DEFAULT_ACL", "public-read"
+            yield "AWS_S3_OBJECT_PARAMETERS", {
+                "CacheControl": f"max-age={3600 * 24 * 365}",
+            }
+
+        if storage_mode == "do":
+            do_region = env.get("DO_REGION", default="ams3")
+            yield "AWS_S3_ENDPOINT_URL", f"https://{do_region}.digitaloceanspaces.com"
+
+    def pre_wagtail(self):
+        """
+        Reasonable default settings for Wagtail
+        """
+
+        yield "WAGTAIL_I18N_ENABLED", True
+        yield "WAGTAIL_ALLOW_UNICODE_SLUGS", False
+        yield "WAGTAIL_ENABLE_UPDATE_CHECK", False
+        yield "TAGGIT_CASE_INSENSITIVE", True
+
+    def post_wagtail(self, context):
+        """
+        Making sure Wagtail components and middlewares are loaded
+        """
+
+        yield from self._install_app(context, "wagtail.contrib.forms", 70)
+        yield from self._install_app(context, "wagtail.contrib.redirects", 70)
+        yield from self._install_app(context, "wagtail.embeds", 71)
+        yield from self._install_app(context, "wagtail.sites", 71)
+        yield from self._install_app(context, "wagtail.users", 71)
+        yield from self._install_app(context, "wagtail.snippets", 71)
+        yield from self._install_app(context, "wagtail.documents", 71)
+        yield from self._install_app(context, "wagtail.images", 71)
+        yield from self._install_app(context, "wagtail.search", 71)
+        yield from self._install_app(context, "wagtail.admin", 71)
+        yield from self._install_app(context, "wagtail", 72)
+        yield from self._install_app(context, "modelcluster", 73)
+        yield from self._install_app(context, "taggit", 73)
+
+        middleware = context.get("MIDDLEWARE")
+
+        if "wagtail.contrib.redirects.middleware.RedirectMiddleware" not in middleware:
+            middleware.append("wagtail.contrib.redirects.middleware.RedirectMiddleware")
+
+        yield "MIDDLEWARE", middleware
+
+    def pre_base_url(self, env):
+        """
+        Defining a BASE_URL and WAGTAIL_BASE_URL environment variable which is
+        used both by Wagtail and by Wailer and potentially other systems in
+        order to know which is the BASE_URL we should use for this website.
+        It's helpful because things don't always come from an HTTP query (like
+        crons) and thus you cannot always know the Host header.
+        """
+
+        base_url = env.get("BASE_URL", build_default="https://example.com")
+        yield "BASE_URL", base_url
+
+        if self.enable_wagtail:
+            yield "WAGTAILADMIN_BASE_URL", base_url
