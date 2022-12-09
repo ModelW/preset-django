@@ -11,6 +11,8 @@ PaaS.
 
    installation
    env-vars
+   wagtail
+   storage
    celery
    channels
    assumptions
