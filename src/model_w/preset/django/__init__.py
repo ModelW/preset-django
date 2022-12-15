@@ -716,6 +716,9 @@ class ModelWDjango(AutoPreset):
         Reasonable default settings for Wagtail
         """
 
+        if not self.enable_wagtail:
+            return
+
         yield "WAGTAIL_I18N_ENABLED", True
         yield "WAGTAIL_ALLOW_UNICODE_SLUGS", False
         yield "WAGTAIL_ENABLE_UPDATE_CHECK", False
@@ -725,6 +728,9 @@ class ModelWDjango(AutoPreset):
         """
         Making sure Wagtail components and middlewares are loaded
         """
+
+        if not self.enable_wagtail:
+            return
 
         yield from self._install_app(context, "wagtail.contrib.forms", 70)
         yield from self._install_app(context, "wagtail.contrib.redirects", 70)
