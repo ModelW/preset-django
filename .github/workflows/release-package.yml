@@ -16,3 +16,4 @@ jobs:
               with:
                   pypi_token: ${{ secrets.PYPI_TOKEN }}
                   python_version: "3.10"
+                  extra_build_dependency_packages: "libpq-dev"
