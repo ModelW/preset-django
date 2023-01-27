@@ -277,7 +277,7 @@ class ModelWDjango(AutoPreset):
         if self.enable_celery:
             from sentry_sdk.integrations.celery import CeleryIntegration
 
-            extra.append(CeleryIntegration)
+            extra.append(CeleryIntegration())
 
         if env.get("SENTRY_DSN", None):
             sentry_sdk.init(
