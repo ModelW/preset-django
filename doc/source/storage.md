@@ -26,7 +26,7 @@ We have two modes of operation:
 -   `s3` &mdash; Is the real one. It has endless options and endless ways to get
     lost.
 
-The mode is set by the `STORAGE_MODE` environment variable. If it's not set,
+The mode is set by the `STORAGES_MODE` environment variable. If it's not set,
 then we default to `s3`.
 
 ### Common settings
