@@ -2135,7 +2135,7 @@ name = "setuptools"
 version = "67.6.1"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 category = "main"
-optional = true
+optional = false
 python-versions = ">=3.7"
 files = [
     {file = "setuptools-67.6.1-py3-none-any.whl", hash = "sha256:e728ca814a823bf7bf60162daf9db95b93d532948c4c0bea762ce62f60189078"},
@@ -2535,4 +2535,4 @@ wagtail = ["boto3", "django-storages", "wagtail", "wand"]
 [metadata]
 lock-version = "2.0"
 python-versions = '~3.10'
-content-hash = "c6b81975f92270214af22dacc34556d4a940ee9eb9af55676c4abc75b9b33e6f"
+content-hash = "43af4d7d8d1d5dd897fd6b13bc8e059691c59f8913084550ca45dbd61a2fc2a6"
