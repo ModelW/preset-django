@@ -376,6 +376,7 @@ class ModelWDjango(AutoPreset):
         yield "USE_I18N", True
         yield "USE_L10N", True
         yield "TIME_ZONE", env.get("TIME_ZONE", self.default_time_zone)
+        yield "USE_TZ", True
 
     def post_languages(self, context):
         """
