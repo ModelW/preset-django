@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "modelw-preset-django"
-version = "2023.3.0"
+version = "2023.3.1b1"
 packages = [
     {  include = "model_w/preset/django", from = "src" }
 ]
