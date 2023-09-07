@@ -40,7 +40,7 @@ djangorestframework-gis = "~1.0"
 celery = {extras = ["redis", "tblib"], version = "~5.3", optional = true}
 django-celery-results = {version = "~2.5", optional = true}
 channels = {version = "~4.0", extras = ["daphne"], optional = true}
-channels-redis = {version = "~4.0", optional = true}
+channels-redis = {version = "~4.1", optional = true}
 wagtail = {version = "~4.2", optional = true}
 wand = {version = "~0.6", optional = true}
 django-storages = {version = "~1.13", optional = true}
