@@ -47,7 +47,7 @@ wagtail = {version = "~5.2", optional = true}
 wand = {version = "~0.6", optional = true}
 whitenoise = "~6.6"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 isort = "*"
 black = "*"
 

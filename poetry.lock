@@ -2502,4 +2502,4 @@ wagtail = ["boto3", "django-storages", "wagtail", "wand"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11"
-content-hash = "2da99b4cf0257fa508a977aba8ace6b9fd1fc7b17498a24a4af73c089058e369"
+content-hash = "bd3f75a1cb776354897ee2b1ad5932944dfa387423f5c5f1c7fa7f92d034c3fc"
