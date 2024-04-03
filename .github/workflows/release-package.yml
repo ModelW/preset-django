@@ -9,11 +9,31 @@ jobs:
     build:
         runs-on: ubuntu-latest
         steps:
+            - name: Install platform dependencies
+              run: sudo apt-get install -y libpq-dev
+
             - name: Checkout
               uses: actions/checkout@v3
-            - name: Build and publish to pypi
-              uses: JRubics/poetry-publish@v1.15
+
+            - name: Setup Poetry
+              run: python -m pipx install poetry
+
+            - name: Setup Python
+              uses: actions/setup-python@v4
               with:
-                  pypi_token: ${{ secrets.PYPI_TOKEN }}
-                  python_version: "3.11"
-                  extra_build_dependency_packages: "libpq-dev"
+                  python-version: "3.11"
+                  cache: poetry
+
+            - name: Install dependencies
+              run: poetry install
+
+            - name: Build package
+              run: poetry build
+
+            - name: Configure Pypi publication
+              run: poetry config pypi-token.pypi $PYPI_TOKEN
+              env:
+                  PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+
+            - name: Publish package
+              run: poetry publish
