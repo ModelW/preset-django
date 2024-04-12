@@ -30,7 +30,7 @@ celery = {extras = ["redis", "tblib"], version = "~5.3", optional = true}
 channels = {version = "~4.0", extras = ["daphne"], optional = true}
 channels-redis = {version = "~4.2", optional = true}
 coloredlogs = "~15.0"
-django = {version = "~4.1", extras = ["argon2"]}
+django = {version = "~4.2", extras = ["argon2"]}
 django-celery-results = {version = "~2.5", optional = true}
 django-postgres-extra = "~2.0"
 django-storages = {version = "~1.14", optional = true}
