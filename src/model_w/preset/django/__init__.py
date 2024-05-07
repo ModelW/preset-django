@@ -100,7 +100,8 @@ class ModelWDjango(AutoPreset):
             automatically if so. You can just request the "channels" extra to
             this package.
         enable_health_check
-            Enables the health check system. It will check if celery is also installed
+            Enables the health check system. It will be automatically enabled
+            if django-health-check is installed. It will check if celery is also installed
             and add the appropriate apps related to it.
         """
 
