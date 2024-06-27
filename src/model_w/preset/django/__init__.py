@@ -1,3 +1,4 @@
+import importlib.metadata
 import logging
 from functools import cache
 from pathlib import Path
@@ -11,9 +12,7 @@ from model_w.env_manager import AutoPreset, EnvManager, no_default
 from model_w.env_manager._dotenv import find_dotenv  # noqa
 from sentry_sdk.integrations.django import DjangoIntegration
 
-__version__ = (
-    __import__("pkg_resources").get_distribution("modelw-preset-django").version
-)
+__version__ = importlib.metadata.version("modelw-preset-django")
 
 __all__ = ["ModelWDjango"]
 
