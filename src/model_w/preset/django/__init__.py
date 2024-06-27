@@ -47,6 +47,7 @@ class ModelWDjango(AutoPreset):
         enable_channels: Optional[bool] = None,
         enable_wagtail: Optional[bool] = None,
         enable_storages: Optional[bool] = None,
+        enable_health_check: Optional[bool] = None,
     ):
         """
         You can set here different adjustments within the supported options
@@ -98,6 +99,10 @@ class ModelWDjango(AutoPreset):
             default it will detect if channels is present and enable it
             automatically if so. You can just request the "channels" extra to
             this package.
+        enable_health_check
+            Enables the health check system. It will be automatically enabled
+            if django-health-check is installed. It will check if celery is also installed
+            and add the appropriate apps related to it.
         """
 
         self.sentry_sample_rate = sentry_sample_rate
@@ -149,6 +154,16 @@ class ModelWDjango(AutoPreset):
             enable_storages = enable_wagtail
 
         self.enable_storages = enable_storages
+
+        if enable_health_check is None:
+            try:
+                import health_check
+            except ImportError:
+                enable_health_check = False
+            else:
+                enable_health_check = True
+
+        self.enable_health_check = enable_health_check
 
     def _guess_base_dir(self, base_dir: Optional[Union[str, Path]]) -> Path:
         """
@@ -768,3 +783,36 @@ class ModelWDjango(AutoPreset):
 
         if self.enable_wagtail:
             yield "WAGTAILADMIN_BASE_URL", base_url
+
+
+    def pre_health_check(self, env: EnvManager):
+        """
+        If health check is enabled, we'll look to enable the health check system.
+        """
+
+        if not self.enable_health_check:
+            return
+
+        yield "HEALTH_CHECK", {
+            "MEMORY_MIN": 300,
+        }
+        if self.enable_celery:
+            yield "HEALTHCHECK_CELERY_PING_TIMEOUT", 0.5
+
+
+    def post_health_check(self, context):
+        """
+        Making sure that Health Check is installed in the apps
+        """
+
+        if not self.enable_health_check:
+            return
+
+        yield from self._install_app(context, "health_check", 80)
+        yield from self._install_app(context, "health_check.db", 81)
+        yield from self._install_app(context, "health_check.cache", 81)
+        yield from self._install_app(context, "health_check.contrib.migrations", 82)
+        yield from self._install_app(context, "health_check.contrib.psutil", 82)
+
+        if self.enable_celery:
+            yield from self._install_app(context, "health_check.contrib.celery_ping", 82)
