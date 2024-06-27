@@ -506,11 +506,26 @@ class ModelWDjango(AutoPreset):
         """
 
         if self.enable_cache:
+            from redis.backoff import ConstantBackoff
+            from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
+            from redis.retry import Retry
+
+            # Configuration according to https://redis.readthedocs.io/en/v5.0.1/connections.html
+            REDIS_OPTIONS = {
+                "socket_timeout": 5,
+                "socket_connect_timeout": 5,
+                "socket_keepalive": True,
+                "health_check_interval": 1,
+                "retry": Retry(ConstantBackoff(5), 100),
+                "retry_on_error": [BusyLoadingError, ConnectionError, TimeoutError],
+            }
+
             yield "CACHES", {
                 "default": {
                     "BACKEND": "django.core.cache.backends.redis.RedisCache",
                     "LOCATION": self._redis_url(env),
                     "KEY_PREFIX": self._redis_prefix(env, "cache"),
+                    "OPTIONS": REDIS_OPTIONS,
                 }
             }
 
@@ -630,9 +645,19 @@ class ModelWDjango(AutoPreset):
         if context["CELERY_BROKER_URL"] != self._redis_url(env):
             return
 
+        # Configuration according to https://docs.celeryq.dev/en/latest/userguide/configuration.html
+        defaults = {
+            "redis_socket_timeout": 5,
+            "redis_socket_connect_timeout": 5,
+            "redis_socket_keepalive": True,
+            "redis_retry_on_timeout": True,
+            "redis_backend_health_check_interval": 1,
+        }
+
         opts = context.get("CELERY_BROKER_TRANSPORT_OPTIONS", {})
 
         yield "CELERY_BROKER_TRANSPORT_OPTIONS", {
+            **defaults,
             **opts,
             "global_keyprefix": self._redis_prefix(env, "celery"),
         }
@@ -649,11 +674,28 @@ class ModelWDjango(AutoPreset):
         if not self.enable_channels:
             return
 
+        from redis.backoff import ConstantBackoff
+        from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
+        from redis.retry import Retry
+
+        # Configuration according to https://github.com/django/channels_redis?tab=readme-ov-file#hosts
+        hosts = [
+            {
+                "address": self._redis_url(env),
+                "socket_timeout": 5,
+                "socket_connect_timeout": 5,
+                "socket_keepalive": True,
+                "retry": Retry(ConstantBackoff(5), 100),
+                "retry_on_error": [BusyLoadingError, ConnectionError, TimeoutError],
+                "health_check_interval": 1,
+            }
+        ]
+
         yield "CHANNEL_LAYERS", {
             "default": {
                 "BACKEND": "channels_redis.core.RedisChannelLayer",
                 "CONFIG": {
-                    "hosts": [self._redis_url(env)],
+                    "hosts": hosts,
                     "prefix": self._redis_prefix(env, "channels"),
                 },
             },
@@ -783,7 +825,6 @@ class ModelWDjango(AutoPreset):
         if self.enable_wagtail:
             yield "WAGTAILADMIN_BASE_URL", base_url
 
-
     def pre_health_check(self, env: EnvManager):
         """
         If health check is enabled, we'll look to enable the health check system.
@@ -797,7 +838,6 @@ class ModelWDjango(AutoPreset):
         }
         if self.enable_celery:
             yield "HEALTHCHECK_CELERY_PING_TIMEOUT", 0.5
-
 
     def post_health_check(self, context):
         """
@@ -814,4 +854,6 @@ class ModelWDjango(AutoPreset):
         yield from self._install_app(context, "health_check.contrib.psutil", 82)
 
         if self.enable_celery:
-            yield from self._install_app(context, "health_check.contrib.celery_ping", 82)
+            yield from self._install_app(
+                context, "health_check.contrib.celery_ping", 82
+            )
