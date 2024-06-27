@@ -1,3 +1,4 @@
+import importlib.metadata
 import logging
 from functools import cache
 from pathlib import Path
@@ -11,9 +12,7 @@ from model_w.env_manager import AutoPreset, EnvManager, no_default
 from model_w.env_manager._dotenv import find_dotenv  # noqa
 from sentry_sdk.integrations.django import DjangoIntegration
 
-__version__ = (
-    __import__("pkg_resources").get_distribution("modelw-preset-django").version
-)
+__version__ = importlib.metadata.version("modelw-preset-django")
 
 __all__ = ["ModelWDjango"]
 
@@ -47,6 +46,7 @@ class ModelWDjango(AutoPreset):
         enable_channels: Optional[bool] = None,
         enable_wagtail: Optional[bool] = None,
         enable_storages: Optional[bool] = None,
+        enable_health_check: Optional[bool] = None,
     ):
         """
         You can set here different adjustments within the supported options
@@ -98,6 +98,10 @@ class ModelWDjango(AutoPreset):
             default it will detect if channels is present and enable it
             automatically if so. You can just request the "channels" extra to
             this package.
+        enable_health_check
+            Enables the health check system. It will be automatically enabled
+            if django-health-check is installed. It will check if celery is also installed
+            and add the appropriate apps related to it.
         """
 
         self.sentry_sample_rate = sentry_sample_rate
@@ -149,6 +153,16 @@ class ModelWDjango(AutoPreset):
             enable_storages = enable_wagtail
 
         self.enable_storages = enable_storages
+
+        if enable_health_check is None:
+            try:
+                import health_check
+            except ImportError:
+                enable_health_check = False
+            else:
+                enable_health_check = True
+
+        self.enable_health_check = enable_health_check
 
     def _guess_base_dir(self, base_dir: Optional[Union[str, Path]]) -> Path:
         """
@@ -376,6 +390,7 @@ class ModelWDjango(AutoPreset):
         yield "USE_I18N", True
         yield "USE_L10N", True
         yield "TIME_ZONE", env.get("TIME_ZONE", self.default_time_zone)
+        yield "USE_TZ", True
 
     def post_languages(self, context):
         """
@@ -491,11 +506,26 @@ class ModelWDjango(AutoPreset):
         """
 
         if self.enable_cache:
+            from redis.backoff import ConstantBackoff
+            from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
+            from redis.retry import Retry
+
+            # Configuration according to https://redis.readthedocs.io/en/v5.0.1/connections.html
+            REDIS_OPTIONS = {
+                "socket_timeout": 5,
+                "socket_connect_timeout": 5,
+                "socket_keepalive": True,
+                "health_check_interval": 1,
+                "retry": Retry(ConstantBackoff(5), 100),
+                "retry_on_error": [BusyLoadingError, ConnectionError, TimeoutError],
+            }
+
             yield "CACHES", {
                 "default": {
                     "BACKEND": "django.core.cache.backends.redis.RedisCache",
                     "LOCATION": self._redis_url(env),
                     "KEY_PREFIX": self._redis_prefix(env, "cache"),
+                    "OPTIONS": REDIS_OPTIONS,
                 }
             }
 
@@ -615,9 +645,19 @@ class ModelWDjango(AutoPreset):
         if context["CELERY_BROKER_URL"] != self._redis_url(env):
             return
 
+        # Configuration according to https://docs.celeryq.dev/en/latest/userguide/configuration.html
+        defaults = {
+            "redis_socket_timeout": 5,
+            "redis_socket_connect_timeout": 5,
+            "redis_socket_keepalive": True,
+            "redis_retry_on_timeout": True,
+            "redis_backend_health_check_interval": 1,
+        }
+
         opts = context.get("CELERY_BROKER_TRANSPORT_OPTIONS", {})
 
         yield "CELERY_BROKER_TRANSPORT_OPTIONS", {
+            **defaults,
             **opts,
             "global_keyprefix": self._redis_prefix(env, "celery"),
         }
@@ -634,11 +674,28 @@ class ModelWDjango(AutoPreset):
         if not self.enable_channels:
             return
 
+        from redis.backoff import ConstantBackoff
+        from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
+        from redis.retry import Retry
+
+        # Configuration according to https://github.com/django/channels_redis?tab=readme-ov-file#hosts
+        hosts = [
+            {
+                "address": self._redis_url(env),
+                "socket_timeout": 5,
+                "socket_connect_timeout": 5,
+                "socket_keepalive": True,
+                "retry": Retry(ConstantBackoff(5), 100),
+                "retry_on_error": [BusyLoadingError, ConnectionError, TimeoutError],
+                "health_check_interval": 1,
+            }
+        ]
+
         yield "CHANNEL_LAYERS", {
             "default": {
                 "BACKEND": "channels_redis.core.RedisChannelLayer",
                 "CONFIG": {
-                    "hosts": [self._redis_url(env)],
+                    "hosts": hosts,
                     "prefix": self._redis_prefix(env, "channels"),
                 },
             },
@@ -767,3 +824,36 @@ class ModelWDjango(AutoPreset):
 
         if self.enable_wagtail:
             yield "WAGTAILADMIN_BASE_URL", base_url
+
+    def pre_health_check(self, env: EnvManager):
+        """
+        If health check is enabled, we'll look to enable the health check system.
+        """
+
+        if not self.enable_health_check:
+            return
+
+        yield "HEALTH_CHECK", {
+            "MEMORY_MIN": 300,
+        }
+        if self.enable_celery:
+            yield "HEALTHCHECK_CELERY_PING_TIMEOUT", 0.5
+
+    def post_health_check(self, context):
+        """
+        Making sure that Health Check is installed in the apps
+        """
+
+        if not self.enable_health_check:
+            return
+
+        yield from self._install_app(context, "health_check", 80)
+        yield from self._install_app(context, "health_check.db", 81)
+        yield from self._install_app(context, "health_check.cache", 81)
+        yield from self._install_app(context, "health_check.contrib.migrations", 82)
+        yield from self._install_app(context, "health_check.contrib.psutil", 82)
+
+        if self.enable_celery:
+            yield from self._install_app(
+                context, "health_check.contrib.celery_ping", 82
+            )
