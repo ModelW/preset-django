@@ -871,6 +871,24 @@ files = [
 Django = ">=4.2"
 
 [[package]]
+name = "django-health-check"
+version = "3.17.0"
+description = "Run checks on services like databases, queue servers, celery processes, etc."
+optional = true
+python-versions = ">=3.8"
+files = [
+    {file = "django-health-check-3.17.0.tar.gz", hash = "sha256:d1b8671e79d1de6e3dd1a9c69566222b0bfcfacca8b90511a4407b2d0d3d2778"},
+    {file = "django_health_check-3.17.0-py2.py3-none-any.whl", hash = "sha256:20dc5ccb516a4e7163593fd4026f0a7531e3027b47d23ebe3bd9dbc99ac4354c"},
+]
+
+[package.dependencies]
+django = ">=2.2"
+
+[package.extras]
+docs = ["sphinx"]
+test = ["celery", "pytest", "pytest-cov", "pytest-django", "redis"]
+
+[[package]]
 name = "django-modelcluster"
 version = "6.3"
 description = "Django extension to allow working with 'clusters' of models as a single unit, independently of the database"
@@ -2602,10 +2620,11 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 celery = ["celery", "django-celery-results"]
 channels = ["channels", "channels-redis"]
 gunicorn = ["gunicorn"]
+health = ["django-health-check"]
 storages = ["boto3", "django-storages"]
 wagtail = ["boto3", "django-storages", "wagtail", "wand"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11"
-content-hash = "c60722278f6b7f1da63cb5c20f2fcb788ee22b9ca30edbff82656c6ad56631c6"
+content-hash = "13f2450d0c6a29b4d46e356a2aa32347ef827c0a5e194554e37ca5a67c84b735"
