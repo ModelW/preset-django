@@ -120,7 +120,7 @@ tests = ["mypy (>=0.800)", "pytest", "pytest-asyncio"]
 name = "async-timeout"
 version = "4.0.3"
 description = "Timeout context manager for asyncio programs"
-optional = true
+optional = false
 python-versions = ">=3.7"
 files = [
     {file = "async-timeout-4.0.3.tar.gz", hash = "sha256:4640d96be84d82d02ed59ea2b7105a0f7b33abe8703703cd0ab0bf87c427522f"},
@@ -2129,7 +2129,7 @@ files = [
 name = "redis"
 version = "5.0.6"
 description = "Python client for Redis database and key-value store"
-optional = true
+optional = false
 python-versions = ">=3.7"
 files = [
     {file = "redis-5.0.6-py3-none-any.whl", hash = "sha256:c0d6d990850c627bbf7be01c5c4cbaadf67b48593e913bb71c9819c30df37eee"},
@@ -2655,4 +2655,4 @@ wagtail = ["boto3", "django-storages", "wagtail", "wand"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11"
-content-hash = "5cc8b0801c5fed7d869215934379e42af221d46ff7bd22fb4564676d0b77b391"
+content-hash = "ab761ca77f0ef4de4c03a3b488cd61b2d060cb6182923d498c3317a956472fdc"
