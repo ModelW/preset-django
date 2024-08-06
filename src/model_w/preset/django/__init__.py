@@ -512,7 +512,7 @@ class ModelWDjango(AutoPreset):
 
             # Configuration according to https://redis.readthedocs.io/en/v5.0.1/connections.html
             REDIS_OPTIONS = {
-                "socket_timeout": 5,
+                "socket_timeout": 10,
                 "socket_connect_timeout": 5,
                 "socket_keepalive": True,
                 "health_check_interval": 1,
@@ -647,7 +647,7 @@ class ModelWDjango(AutoPreset):
 
         # Configuration according to https://docs.celeryq.dev/en/latest/userguide/configuration.html
         defaults = {
-            "redis_socket_timeout": 5,
+            "redis_socket_timeout": 10,
             "redis_socket_connect_timeout": 5,
             "redis_socket_keepalive": True,
             "redis_retry_on_timeout": True,
@@ -682,7 +682,7 @@ class ModelWDjango(AutoPreset):
         hosts = [
             {
                 "address": self._redis_url(env),
-                "socket_timeout": 5,
+                "socket_timeout": 10,
                 "socket_connect_timeout": 5,
                 "socket_keepalive": True,
                 "retry": Retry(ConstantBackoff(5), 100),
