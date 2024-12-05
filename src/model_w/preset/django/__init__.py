@@ -129,7 +129,6 @@ class ModelWDjango(AutoPreset):
         if enable_channels is None:
             try:
                 import channels
-                import daphne
                 import redis
             except ImportError:
                 enable_channels = False
@@ -331,7 +330,6 @@ class ModelWDjango(AutoPreset):
         logging.getLogger("django.db.backends").setLevel(logging.INFO)
         logging.getLogger("django.template").setLevel(logging.INFO)
         logging.getLogger("django.request").setLevel(logging.ERROR)
-        logging.getLogger("daphne.http_protocol").setLevel(logging.INFO)
         logging.getLogger("asyncio").setLevel(logging.INFO)
         logging.getLogger("parso").setLevel(logging.INFO)
         logging.getLogger("s3transfer").setLevel(logging.INFO)
@@ -710,7 +708,6 @@ class ModelWDjango(AutoPreset):
             return
 
         yield from self._install_app(context, "channels", 10)
-        yield from self._install_app(context, "daphne", 10)
 
     def post_django_default(self, context):
         yield from self._install_app(context, "django.contrib.admin", 60)
