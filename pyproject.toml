@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "modelw-preset-django"
-version = "2024.10.0"
+version = "2025.1.0b1"
 packages = [
     {  include = "model_w/preset/django", from = "src" }
 ]
@@ -23,11 +23,11 @@ homepage = "https://github.com/ModelW/preset-django"
 keywords = ["django", "env", "configuration"]
 
 [tool.poetry.dependencies]
-python = '~3.11'
+python = '~3.12'
 setuptools = "*"
 boto3 = {version = "~1.35", optional = true}
 celery = {extras = ["redis", "tblib"], version = "~5.4", optional = true}
-channels = {version = "~4.1", extras = ["daphne"], optional = true}
+channels = {version = "~4.2", optional = true}
 channels-redis = {version = "~4.2", optional = true}
 coloredlogs = "~15.0"
 django = {version = "~4.2", extras = ["argon2"]}
@@ -37,18 +37,19 @@ django-postgres-extra = "~2.0"
 django-storages = {version = "~1.14", optional = true}
 django-wailer = "~1.0.0-beta.2"
 djangorestframework = "~3.15"
-djangorestframework-gis = "~1.0"
-dj-database-url = "~2.2"
-gunicorn = {version = "~23.0", optional = true}
+djangorestframework-gis = "~1.1"
+dj-database-url = "~2.3"
+granian = "~1.6.4"
 modelw-env-manager = "~1.0"
-psutil = "^5.9.8"
-psycopg2 = "~2.9"
-redis = "~5.1"
+psutil = "^6.1.1"
+psycopg2 = {version = "~2.9", optional = true}  # Optional psycopg2
+psycopg = {version = "~3.2", optional = true}  # Optional psycopg3
+redis = "~5.2"
 rich = "~13.9"
-sentry-sdk = "~2.15"
-wagtail = {version = "~6.2", optional = true}
+sentry-sdk = "~2.19"
+wagtail = {version = "~6.3", optional = true}
 wand = {version = "~0.6", optional = true}
-whitenoise = "~6.7"
+whitenoise = "~6.8"
 
 [tool.poetry.group.dev.dependencies]
 isort = "*"
@@ -59,8 +60,9 @@ celery = ["celery", "django-celery-results"]
 channels = ["channels", "channels-redis"]
 wagtail = ["wagtail", "wand", "django-storages", "boto3"]
 storages = ["django-storages", "boto3"]
-gunicorn = ["gunicorn"]
 health = ["django-health-check"]
+psycopg2 = ["psycopg2"]
+psycopg = ["psycopg"] # psycopg3
 
 [build-system]
 requires = ["poetry-core>=1.0.0", "setuptools"]
