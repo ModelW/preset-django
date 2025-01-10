@@ -42,7 +42,8 @@ dj-database-url = "~2.2"
 granian = "~1.6.4"
 modelw-env-manager = "~1.0"
 psutil = "^5.9.8"
-psycopg2 = "~2.9"
+psycopg2 = {version = "~2.9", optional = true}  # Optional psycopg2
+psycopg = {version = "~3.2", optional = true}  # Optional psycopg3
 redis = "~5.1"
 rich = "~13.9"
 sentry-sdk = "~2.15"
@@ -60,6 +61,8 @@ channels = ["channels", "channels-redis"]
 wagtail = ["wagtail", "wand", "django-storages", "boto3"]
 storages = ["django-storages", "boto3"]
 health = ["django-health-check"]
+psycopg2 = ["psycopg2"]
+psycopg = ["psycopg"] # psycopg3
 
 [build-system]
 requires = ["poetry-core>=1.0.0", "setuptools"]
