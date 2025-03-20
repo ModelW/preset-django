@@ -461,8 +461,12 @@ class ModelWDjango(AutoPreset):
         We use WhiteNoise as static files storage engine and we make sure that
         it is present within middlewares.
         """
+        storages = context.get("STORAGES", {})
+        storages["staticfiles"] = {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        }
 
-        yield "STATICFILES_STORAGE", "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        yield "STORAGES", storages
 
         middleware = context.get("MIDDLEWARE")
 
@@ -738,7 +742,11 @@ class ModelWDjango(AutoPreset):
         if not self.enable_storages:
             return
 
-        yield "DEFAULT_FILE_STORAGE", "storages.backends.s3boto3.S3Boto3Storage"
+        storages = env.get("STORAGES", {})
+        storages["default"] = {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"}
+
+        yield "STORAGES", storages
+
         yield "AWS_S3_FILE_OVERWRITE", False
 
         is_aws = bool(env.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", default=""))
