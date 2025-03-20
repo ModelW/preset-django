@@ -54,6 +54,7 @@ whitenoise = "~6.9"
 [tool.poetry.group.dev.dependencies]
 isort = "*"
 black = "*"
+ruff = "^0.11.0"
 
 [tool.poetry.extras]
 celery = ["celery", "django-celery-results"]
