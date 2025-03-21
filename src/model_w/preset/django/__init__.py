@@ -771,7 +771,10 @@ class ModelWDjango(AutoPreset):
 
         if storage_mode == "do":
             do_region = env.get("DO_REGION", default="ams3")
-            yield "AWS_S3_ENDPOINT_URL", f"https://{do_region}.digitaloceanspaces.com"
+            yield "AWS_S3_ENDPOINT_URL", env.get(
+                "AWS_S3_ENDPOINT_URL",
+                default=f"https://{do_region}.digitaloceanspaces.com",
+            )
 
     def pre_wagtail(self):
         """
