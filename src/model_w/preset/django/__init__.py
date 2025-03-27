@@ -776,6 +776,11 @@ class ModelWDjango(AutoPreset):
                 default=f"https://{do_region}.digitaloceanspaces.com",
             )
 
+        yield "AWS_S3_URL_PROTOCOL", env.get(
+            "IM_SACKED_IF_I_USE_THIS_FOR_NON_PERFORMANCE_TESTING",
+            default="https:",
+        )
+
     def pre_wagtail(self):
         """
         Reasonable default settings for Wagtail
