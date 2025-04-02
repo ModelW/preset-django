@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "modelw-preset-django"
-version = "2025.4.0b4"
+version = "2025.4.0b5"
 packages = [
     {  include = "model_w/preset/django", from = "src" }
 ]
@@ -51,6 +51,7 @@ sentry-sdk = "~2.22"
 wagtail = {version = "~6.4", optional = true}
 wand = {version = "~0.6", optional = true}
 whitenoise = "~6.9"
+django-ipware = "^7.0.1"
 
 [tool.poetry.group.dev.dependencies]
 isort = "*"
