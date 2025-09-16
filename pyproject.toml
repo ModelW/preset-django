@@ -25,38 +25,38 @@ keywords = ["django", "env", "configuration"]
 [tool.poetry.dependencies]
 python = '~3.13'
 setuptools = "*"
-boto3 = {version = "~1.38", optional = true}
+boto3 = {version = "~1.40", optional = true}
 celery = {extras = ["redis", "tblib"], version = "~5.5", optional = true}
-channels = {version = "~4.2", optional = true}
-channels-redis = {version = "~4.2", optional = true}
+channels = {version = "~4.3", optional = true}
+channels-redis = {version = "~4.3", optional = true}
 coloredlogs = "~15.0"
 django = {version = "~5.2", extras = ["argon2"]}
 django-celery-results = {version = "~2.6", optional = true}
-django-health-check = {version="~3.19.0", optional = true}
+django-health-check = {version="~3.20.0", optional = true}
 django-postgres-extra = "~2.0"
 django-storages = {version = "~1.14", optional = true}
 django-wailer = "~1.0.0-beta.2"
 djangorestframework = "~3.16"
 djangorestframework-gis = "~1.2"
 dj-database-url = "~3.0"
-granian = "~2.3.2"
+granian = "~2.5.3"
 modelw-env-manager = "~1.0"
-procrastinate = {extras = ["django"], version = "~3.2", optional = true}
+procrastinate = {extras = ["django"], version = "~3.5", optional = true}
 psutil = "^7.0.0"
 psycopg2 = {version = "~2.9", optional = true}  # Optional psycopg2
 psycopg = {version = "~3.2", optional = true}  # Optional psycopg3
 redis = "~5.3"
-rich = "~13.9"
-sentry-sdk = "~2.29"
-wagtail = {version = "~7.0", optional = true}
+rich = "~14.1"
+sentry-sdk = "~2.38"
+wagtail = {version = "~7.1", optional = true}
 wand = {version = "~0.6", optional = true}
-whitenoise = "~6.9"
+whitenoise = "~6.10"
 django-ipware = "~7.0.1"
 
 [tool.poetry.group.dev.dependencies]
 isort = "*"
 black = "*"
-ruff = "^0.11.12"
+ruff = "^0.13.0"
 
 [tool.poetry.extras]
 celery = ["celery", "django-celery-results"]
