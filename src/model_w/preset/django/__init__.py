@@ -349,6 +349,7 @@ class ModelWDjango(AutoPreset):
         """
 
         pool = env.get("POOL_DB_CONNECTIONS", False, is_yaml=True)
+        conn_health_checks = env.get("DB_CONN_HEALTH_CHECKS", True, is_yaml=True)
 
         if url := env.get(
             "DATABASE_URL",
@@ -358,6 +359,7 @@ class ModelWDjango(AutoPreset):
                 "default": db_config(
                     url=url,
                     conn_max_age=(self.conn_max_age_when_pooled if pool else 0),
+                    conn_health_checks=conn_health_checks,
                     engine="psqlextra.backend",
                 )
             }
