@@ -39,6 +39,7 @@ class ModelWDjango(AutoPreset):
         default_time_zone: str = "Europe/Madrid",
         url_prefix: str = "/back",
         conn_max_age_when_pooled: Union[int, float] = 60,
+        enable_cursors: bool = False,
         enable_cache: bool = True,
         enable_celery: Optional[bool] = None,
         celery_task_track_started: bool = True,
@@ -109,6 +110,7 @@ class ModelWDjango(AutoPreset):
         self.enable_postgis = enable_postgis
         self.default_time_zone = default_time_zone
         self.url_prefix = url_prefix.rstrip("/")
+        self.enable_cursors = enable_cursors
         self.conn_max_age_when_pooled = conn_max_age_when_pooled
         self.enable_cache = enable_cache
 
@@ -359,6 +361,7 @@ class ModelWDjango(AutoPreset):
                     url=url,
                     conn_max_age=(self.conn_max_age_when_pooled if pool else 0),
                     engine="psqlextra.backend",
+                    disable_server_side_cursors=(not self.enable_cursors),
                 )
             }
 
