@@ -13,15 +13,15 @@ jobs:
               run: sudo apt-get install -y libpq-dev
 
             - name: Checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v6
 
             - name: Setup Poetry
               run: python -m pipx install poetry
 
             - name: Setup Python
-              uses: actions/setup-python@v4
+              uses: actions/setup-python@v6
               with:
-                  python-version: "3.13"
+                  python-version: "3.14"
                   cache: poetry
 
             - name: Install dependencies
