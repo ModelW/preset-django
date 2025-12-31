@@ -807,6 +807,7 @@ class ModelWDjango(AutoPreset):
         if not self.enable_wagtail:
             return
 
+        yield from self._install_app(context, "django.contrib.postgres", 70) # Required for Wagtail's full text search
         yield from self._install_app(context, "wagtail.contrib.forms", 70)
         yield from self._install_app(context, "wagtail.contrib.redirects", 70)
         yield from self._install_app(context, "wagtail.embeds", 71)
