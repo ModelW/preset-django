@@ -1,5 +1,6 @@
 import importlib.metadata
 import logging
+from datetime import timedelta
 from functools import cache
 from pathlib import Path
 from typing import List, NamedTuple, Optional, Union
@@ -48,6 +49,7 @@ class ModelWDjango(AutoPreset):
         enable_wagtail: Optional[bool] = None,
         enable_storages: Optional[bool] = None,
         enable_health_check: Optional[bool] = None,
+        enable_security: Optional[bool] = None,
     ):
         """
         You can set here different adjustments within the supported options
@@ -103,6 +105,10 @@ class ModelWDjango(AutoPreset):
             Enables the health check system. It will be automatically enabled
             if django-health-check is installed. It will check if celery is also installed
             and add the appropriate apps related to it.
+        enable_security
+            Enables some security middlewares and settings. It's disabled by default
+            because it could cause issues with existing projects, but it is recommnded
+            to enable it for better security.
         """
 
         self.sentry_sample_rate = sentry_sample_rate
@@ -113,6 +119,7 @@ class ModelWDjango(AutoPreset):
         self.enable_cursors = enable_cursors
         self.conn_max_age_when_pooled = conn_max_age_when_pooled
         self.enable_cache = enable_cache
+        self.enable_security = enable_security
 
         if enable_celery is None:
             try:
@@ -843,6 +850,27 @@ class ModelWDjango(AutoPreset):
 
         if self.enable_wagtail:
             yield "WAGTAILADMIN_BASE_URL", base_url
+
+    def pre_security(self, env: EnvManager):
+        """
+        Enabling some security middlewares and settings. It's disabled by default
+        because it could cause issues with existing projects, but it is recommnded
+        to enable it for better security.
+
+        We suggest, only apply these if DEBUG is False, to not affect local development,
+        where you generally don't have HTTPS.
+        ie. `ModelWDjango(enable_security=not DEBUG)`
+        """
+
+        if not self.enable_security:
+            return
+        
+        yield "SECURE_HSTS_SECONDS", int(timedelta(days=365).total_seconds())
+        yield "SECURE_HSTS_INCLUDE_SUBDOMAINS", True
+        yield "SECURE_HSTS_PRELOAD", True
+        yield "SECURE_CONTENT_TYPE_NOSNIFF", True
+        yield "SESSION_COOKIE_SECURE", True
+        yield "CSRF_COOKIE_SECURE", True
 
     def pre_health_check(self, env: EnvManager):
         """
