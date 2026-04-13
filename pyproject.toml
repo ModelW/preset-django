@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "modelw-preset-django"
-version = "2026.1.0"
+version = "2026.4.0b1"
 packages = [
     {  include = "model_w/preset/django", from = "src" }
 ]
@@ -32,31 +32,33 @@ channels-redis = {version = "~4.3", optional = true}
 coloredlogs = "~15.0"
 django = {version = "~6.0", extras = ["argon2"]}
 django-celery-results = {version = "~2.6", optional = true}
-django-health-check = {version="~3.20.0", optional = true}
+django-health-check = {version="~3.24.0", optional = true}
+django-ninja = {version="~1.6.0", optional = true}
 django-postgres-extra = "~2.0"
 django-storages = {version = "~1.14", optional = true}
 django-wailer = "~1.0.0-beta.2"
 djangorestframework = "~3.16"
 djangorestframework-gis = "~1.2"
-dj-database-url = "~3.0"
-granian = "~2.6.0"
+dj-database-url = "~3.1"
+email-validator = {version="^2.0", optional = true}
+granian = "~2.7.0"
 modelw-env-manager = "~1.0"
-procrastinate = {extras = ["django"], version = "~3.6", optional = true}
+procrastinate = {extras = ["django"], version = "~3.7", optional = true}
 psutil = "^7.2.0"
 psycopg2 = {version = "~2.9", optional = true}  # Optional psycopg2
 psycopg = {version = "~3.3", optional = true}  # Optional psycopg3
 redis = "~6.4"
-rich = "~14.2"
-sentry-sdk = "~2.48"
-wagtail = {version = "~7.2", optional = true}
-wand = {version = "~0.6", optional = true}
-whitenoise = "~6.11"
+rich = "~14.3"
+sentry-sdk = "~2.57"
+wagtail = {version = "~7.3", optional = true}
+wand = {version = "~0.7", optional = true}
+whitenoise = "~6.12"
 django-ipware = "~7.0.1"
 
 [tool.poetry.group.dev.dependencies]
 isort = "*"
 black = "*"
-ruff = "^0.14.0"
+ruff = "^0.15.0"
 
 [tool.poetry.extras]
 celery = ["celery", "django-celery-results"]
@@ -64,6 +66,7 @@ channels = ["channels", "channels-redis"]
 wagtail = ["wagtail", "wand", "django-storages", "boto3"]
 storages = ["django-storages", "boto3"]
 health = ["django-health-check"]
+ninja = ["django-ninja", "email-validator"]
 procrastinate = ["procrastinate"]
 psycopg2 = ["psycopg2"]
 psycopg = ["psycopg"] # psycopg3
