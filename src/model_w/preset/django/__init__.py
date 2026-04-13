@@ -50,6 +50,7 @@ class ModelWDjango(AutoPreset):
         enable_storages: Optional[bool] = None,
         enable_health_check: Optional[bool] = None,
         enable_security: Optional[bool] = None,
+        enable_ninja: Optional[bool] = None,
     ):
         """
         You can set here different adjustments within the supported options
@@ -109,6 +110,9 @@ class ModelWDjango(AutoPreset):
             Enables some security middlewares and settings. It's disabled by default
             because it could cause issues with existing projects, but it is recommnded
             to enable it for better security.
+        enable_ninja
+            Enables Django Ninja. By default it will detect if ninja is present and enable it
+            automatically if so. You can just request the "ninja" extra to this package.
         """
 
         self.sentry_sample_rate = sentry_sample_rate
@@ -120,6 +124,7 @@ class ModelWDjango(AutoPreset):
         self.conn_max_age_when_pooled = conn_max_age_when_pooled
         self.enable_cache = enable_cache
         self.enable_security = enable_security
+        self.enable_ninja = enable_ninja
 
         if enable_celery is None:
             try:
@@ -171,6 +176,14 @@ class ModelWDjango(AutoPreset):
                 enable_health_check = True
 
         self.enable_health_check = enable_health_check
+
+        if self.enable_ninja is None:
+            try:
+                import ninja  # pyright: ignore[reportMissingImports] # noqa: F401
+            except ImportError:
+                self.enable_ninja = False
+            else:
+                self.enable_ninja = True
 
     def _guess_base_dir(self, base_dir: Optional[Union[str, Path]]) -> Path:
         """
@@ -596,6 +609,9 @@ class ModelWDjango(AutoPreset):
         Some basic DRF configuration, feel free to make it your own
         """
 
+        if self.enable_ninja:
+            return
+
         yield "REST_FRAMEWORK", {
             "DEFAULT_AUTHENTICATION_CLASSES": (
                 "rest_framework.authentication.SessionAuthentication",
@@ -613,6 +629,9 @@ class ModelWDjango(AutoPreset):
         """
         We're installing DRF
         """
+
+        if self.enable_ninja:
+            return
 
         yield from self._install_app(context, "rest_framework", 80)
         yield from self._install_app(context, "rest_framework_gis", 80)
