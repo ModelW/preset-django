@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "modelw-preset-django"
-version = "2026.4.0"
+version = "2026.7.0"
 packages = [
     {  include = "model_w/preset/django", from = "src" }
 ]
@@ -25,7 +25,7 @@ keywords = ["django", "env", "configuration"]
 [tool.poetry.dependencies]
 python = '~3.14'
 setuptools = "*"
-boto3 = {version = "~1.42", optional = true}
+boto3 = {version = "~1.43", optional = true}
 celery = {extras = ["redis", "tblib"], version = "~5.6", optional = true}
 channels = {version = "~4.3", optional = true}
 channels-redis = {version = "~4.3", optional = true}
@@ -37,20 +37,20 @@ django-ninja = {version="~1.6.0", optional = true}
 django-postgres-extra = "~2.0"
 django-storages = {version = "~1.14", optional = true}
 django-wailer = "~1.0.0-beta.2"
-djangorestframework = "~3.16"
+djangorestframework = "~3.17"
 djangorestframework-gis = "~1.2"
 dj-database-url = "~3.1"
 email-validator = {version="^2.0", optional = true}
 granian = "~2.7.0"
 modelw-env-manager = "~1.0"
-procrastinate = {extras = ["django"], version = "~3.7", optional = true}
+procrastinate = {extras = ["django"], version = "~3.9", optional = true}
 psutil = "^7.2.0"
 psycopg2 = {version = "~2.9", optional = true}  # Optional psycopg2
 psycopg = {version = "~3.3", optional = true}  # Optional psycopg3
 redis = "~6.4"
 rich = "~14.3"
-sentry-sdk = "~2.57"
-wagtail = {version = "~7.3", optional = true}
+sentry-sdk = "~2.64"
+wagtail = {version = "~7.4", optional = true}
 wand = {version = "~0.7", optional = true}
 whitenoise = "~6.12"
 django-ipware = "~7.0.1"
