@@ -634,7 +634,8 @@ class ModelWDjango(AutoPreset):
             return
 
         yield from self._install_app(context, "rest_framework", 80)
-        yield from self._install_app(context, "rest_framework_gis", 80)
+        if self.enable_postgis:
+            yield from self._install_app(context, "rest_framework_gis", 80)
 
     def post_helper(self, context):
         """
