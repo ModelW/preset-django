@@ -891,35 +891,14 @@ class ModelWDjango(AutoPreset):
         yield "SESSION_COOKIE_SECURE", True
         yield "CSRF_COOKIE_SECURE", True
 
-    def pre_health_check(self, env: EnvManager):
-        """
-        If health check is enabled, we'll look to enable the health check system.
-        """
-
-        if not self.enable_health_check:
-            return
-
-        yield "HEALTH_CHECK", {
-            "MEMORY_MIN": 300,
-        }
-        if self.enable_celery:
-            yield "HEALTHCHECK_CELERY_PING_TIMEOUT", 0.5
-
     def post_health_check(self, context):
         """
-        Making sure that Health Check is installed in the apps
+        Making sure that Health Check is installed in the apps.
+
+        See: https://codingjoe.dev/django-health-check/install/
         """
 
         if not self.enable_health_check:
             return
 
         yield from self._install_app(context, "health_check", 80)
-        yield from self._install_app(context, "health_check.db", 81)
-        yield from self._install_app(context, "health_check.cache", 81)
-        yield from self._install_app(context, "health_check.contrib.migrations", 82)
-        yield from self._install_app(context, "health_check.contrib.psutil", 82)
-
-        if self.enable_celery:
-            yield from self._install_app(
-                context, "health_check.contrib.celery_ping", 82
-            )
