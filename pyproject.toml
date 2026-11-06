@@ -59,6 +59,7 @@ django-ipware = "~8.0.0"
 isort = "*"
 black = "*"
 ruff = "^0.16.0"
+pytest = "^9"
 
 [tool.poetry.extras]
 celery = ["celery", "django-celery-results"]
@@ -77,3 +78,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.isort]
 profile = "black"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
