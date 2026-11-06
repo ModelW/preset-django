@@ -249,20 +249,29 @@ class ModelWDjango(AutoPreset):
         variable. It can be "develop_remy" for a developer's environment,
         "production" for prod, "feature_42" for a feature branch, etc.
 
-        If we see that the user's home is in `/home` then we invent an
-        environment name automatically based on the DB name. This kinds of
-        ensure unicity in subsequent prefixes (for Redis) because if the DB
-        name is unique locally then the prefix name shall be too.
+        On a developer's machine (debug mode, or a user's home in `/home`), we
+        invent an environment name automatically based on the user and the DB
+        name. This kinds of ensure unicity in subsequent prefixes (for Redis)
+        because if the DB name is unique locally then the prefix name shall be
+        too. This works on every OS: the user comes from `USER` (Linux, macOS)
+        or `USERNAME` (Windows).
 
         We don't do this in production because this should be a deliberate
         choice to name the environment and not just letting the default happen.
+
+        Notes
+        -----
+        Without this default, a missing ENVIRONMENT makes the settings fail to
+        load, which Django's manage.py hides: it carries on with its global
+        defaults, so the visible errors are about DEBUG being off or about
+        DATABASES, not about ENVIRONMENT.
         """
 
         default = no_default
+        local = self._debug(env) or env.get("HOME", default="").startswith("/home/")
+        user = env.get("USER", default="") or env.get("USERNAME", default="")
 
-        if env.get("HOME", default="").startswith("/home/") and (
-            user := env.get("USER", default="")
-        ):
+        if local and user:
             db = dict(self.pre_database(env))
 
             if "DATABASES" in db and (
